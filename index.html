@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scratch-to-HTML5 Converter</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Browser-based converter</p>
+          <h1>Scratch-to-HTML5</h1>
+        </div>
+        <div class="mode-switch" aria-label="Conversion mode selector">
+          <button class="mode-button active" data-mode="html-to-scratch">HTML → Scratch</button>
+          <button class="mode-button" data-mode="scratch-to-html">Scratch → HTML5</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="panel input-panel">
+          <div class="panel-header">
+            <label id="sourceLabel" for="sourceInput">HTML input</label>
+            <button id="sampleBtn" class="secondary-btn" type="button">Load sample</button>
+          </div>
+          <textarea id="sourceInput" spellcheck="false"></textarea>
+          <div class="toolbar">
+            <button id="convertBtn" type="button">Convert</button>
+            <button id="copyBtn" class="secondary-btn" type="button">Copy output</button>
+            <button id="downloadBtn" class="secondary-btn" type="button">Download</button>
+          </div>
+        </section>
+
+        <section class="panel output-panel">
+          <div class="panel-header">
+            <label for="output">Output</label>
+          </div>
+          <textarea id="output" readonly spellcheck="false"></textarea>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

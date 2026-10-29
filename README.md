@@ -1,90 +1,554 @@
-# Scratch-to-HTML5
+const state = {
+  mode: 'html-to-scratch',
+};
 
-A tool for turning HTML5 content into Scratch projects and turning Scratch projects back into HTML5 experiences.
+const sourceInput = document.getElementById('sourceInput');
+const output = document.getElementById('output');
+const sourceLabel = document.getElementById('sourceLabel');
+const convertBtn = document.getElementById('convertBtn');
+const copyBtn = document.getElementById('copyBtn');
+const sampleBtn = document.getElementById('sampleBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const modeButtons = document.querySelectorAll('.mode-button');
 
-This project is designed for creators who want to:
+const SAMPLE_HTML = `
+  <main class="demo-app">
+    <h1>Hello from HTML</h1>
+    <button type="button">Click me</button>
+    <p>Turn this into a Scratch-style project.</p>
+  </main>
+`;
 
-- convert a static or interactive HTML5 page into a Scratch-style project
-- rebuild a Scratch project as an HTML5 prototype or web page
-- experiment with making browser-based experiences from block-based projects
+const SAMPLE_SCRATCH = {
+  projectName: 'Demo Scratch Project',
+  version: '1.0',
+  sprites: [
+    {
+      name: 'Stage',
+      isStage: true,
+      variables: {},
+      lists: {},
+      costumes: [{ name: 'Backdrop', assetId: 'backdrop-1', md5ext: 'backdrop-1.svg', dataFormat: 'svg', bitmapResolution: 1, rotationCenterX: 0, rotationCenterY: 0 }],
+      sounds: [],
+      blocks: {}
+    },
+    {
+      name: 'Title',
+      isStage: false,
+      variables: {},
+      lists: {},
+      costumes: [{ name: 'Title costume', assetId: 'title-1', md5ext: 'title-1.svg', dataFormat: 'svg', bitmapResolution: 1, rotationCenterX: 0, rotationCenterY: 0 }],
+      sounds: [],
+      html: {
+        tag: 'h1',
+        text: 'Hello from Scratch',
+        attributes: { class: 'scratch-title' }
+      }
+    },
+    {
+      name: 'Button',
+      isStage: false,
+      variables: {},
+      lists: {},
+      costumes: [{ name: 'Button costume', assetId: 'button-1', md5ext: 'button-1.svg', dataFormat: 'svg', bitmapResolution: 1, rotationCenterX: 0, rotationCenterY: 0 }],
+      sounds: [],
+      html: {
+        tag: 'button',
+        text: 'Click me',
+        attributes: { type: 'button', class: 'scratch-button' }
+      }
+    }
+  ],
+  htmlMap: [
+    { element: 'h1', text: 'Hello from Scratch' },
+    { element: 'button', text: 'Click me' }
+  ]
+};
 
-## What this project does
+function slugify(value) {
+  return String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'item';
+}
 
-Scratch-to-HTML5 helps bridge the gap between two creative ecosystems:
+function safeText(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
 
-- HTML5 front-end development
-- Scratch visual programming
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
-It aims to make it easier to move ideas between them without starting from scratch.
+function collectAttributes(node) {
+  const attrs = {};
+  for (const attribute of node.attributes) {
+    if (attribute.value) {
+      attrs[attribute.name] = attribute.value;
+    }
+  }
+  return attrs;
+}
 
-## Core ideas
+function createCostume(name) {
+  return {
+    name,
+    assetId: slugify(name) + '-' + Math.random().toString(16).slice(2, 8),
+    md5ext: `${slugify(name)}.svg`,
+    dataFormat: 'svg',
+    bitmapResolution: 1,
+    rotationCenterX: 0,
+    rotationCenterY: 0,
+  };
+}
 
-### HTML5 to Scratch
+function htmlToScratch(htmlText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlText || '<div>Empty HTML</div>', 'text/html');
+  const body = doc.body || doc.documentElement;
+  const elements = Array.from(body.children).filter((node) => {
+    return node.tagName && !['SCRIPT', 'STYLE'].includes(node.tagName.toUpperCase());
+  });
 
-Take HTML content and convert it into a Scratch-style project structure using:
+  const sprites = [{
+    name: 'Stage',
+    isStage: true,
+    variables: {},
+    lists: {},
+    costumes: [createCostume('Backdrop')],
+    sounds: [],
+    blocks: {},
+  }];
 
-- sprites and scenes
-- costumes and backdrops
-- motion and interaction blocks
-- simple event-driven behavior
+  const htmlMap = [];
 
-### Scratch to HTML5
+  if (!elements.length) {
+    const fallbackText = safeText(htmlText) || 'Empty HTML';
+    sprites.push({
+      name: 'Text-1',
+      isStage: false,
+      variables: {},
+      lists: {},
+      costumes: [createCostume('Text Costume')],
+      sounds: [],
+      blocks: {},
+      html: {
+        tag: 'div',
+        text: fallbackText,
+        attributes: { class: 'converted-text' },
+      },
+    });
 
-Take a Scratch project and re-create an HTML5 version with:
+    htmlMap.push({ element: 'div', text: fallbackText });
+  } else {
+    elements.forEach((element, index) => {
+      const safeName = `${element.tagName.toLowerCase()}-${index + 1}`;
+      const text = safeText(element.textContent) || element.tagName.toLowerCase();
+      const attributes = collectAttributes(element);
 
-- web layout and styling
-- JavaScript interactions
-- DOM elements and animation
-- simplified project behavior
+      sprites.push({
+        name: safeName,
+        isStage: false,
+        variables: {},
+        lists: {},
+        costumes: [createCostume(safeName)],
+        sounds: [],
+        blocks: {},
+        html: {
+          tag: element.tagName.toLowerCase(),
+          text,
+          attributes,
+        },
+      });
 
-## Example use cases
+      htmlMap.push({ element: element.tagName.toLowerCase(), text, attributes });
+    });
+  }
 
-- turning a landing page into a playful Scratch-style demo
-- rebuilding a Scratch game as a browser-based interface
-- teaching students how design ideas map between visual coding and web code
-- prototyping creative experiences quickly in both environments
+  return JSON.stringify({
+    projectName: 'HTML to Scratch Conversion',
+    version: '1.0',
+    sprites,
+    htmlMap,
+  }, null, 2);
+}
 
-## Project goals
+function scratchToHtml(scractchText) {
+  let project;
 
-- support simple HTML-to-Scratch conversions
-- support simple Scratch-to-HTML5 conversions
-- keep the workflow beginner-friendly
-- encourage experimentation and remixing
-- provide a clean path from visual programming to web development
+  try {
+    project = JSON.parse(scractchText);
+  } catch (error) {
+    return 'The input must be valid JSON. Please paste a Scratch-style project JSON or use the sample data.';
+  }
 
-## Status
+  const sprites = Array.isArray(project.sprites) ? project.sprites : [];
+  const htmlNodes = sprites
+    .filter((sprite) => !sprite.isStage)
+    .map((sprite, index) => {
+      const tag = sprite.html && sprite.html.tag ? sprite.html.tag : 'div';
+      const text = (sprite.html && sprite.html.text) || `Sprite ${index + 1}`;
+      const attributes = (sprite.html && sprite.html.attributes) || {};
+      const attributeString = Object.entries(attributes)
+        .map(([key, value]) => ` ${key}="${escapeHtml(value)}"`)
+        .join('');
 
-This repository is being set up as a conversion-focused project. The long-term goal is to support a usable conversion workflow for both directions.
+      return `<${tag}${attributeString} class="scratch-sprite">${escapeHtml(text)}</${tag}>`;
+    });
 
-## Getting started
+  if (!htmlNodes.length) {
+    htmlNodes.push('<div class="scratch-sprite">Converted Scratch element</div>');
+  }
 
-1. Clone this repository
-2. Open the project files in your preferred editor
-3. Build the conversion pipeline for your chosen direction
-4. Test with simple HTML pages and Scratch project examples
+  return `<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Converted Scratch Project</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, #020817, #0f172a);
+        font-family: Arial, sans-serif;
+        color: #f8fafc;
+      }
 
-## Suggested roadmap
+      .scratch-scene {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+      }
 
-- HTML parsing and structure mapping
-- Scratch project parsing and metadata extraction
-- conversion rules for text, layout, and interactions
-- HTML5 output generation
-- example projects and sample conversion demos
-- improved UI for easier conversion
+      .scratch-sprite {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 12px;
+        background: rgba(56, 189, 248, 0.15);
+        border: 1px solid rgba(56, 189, 248, 0.28);
+        box-shadow: 0 10px 30px rgba(14, 165, 233, 0.15);
+      }
 
-## Contributing
+      button.scratch-sprite {
+        border: none;
+        cursor: pointer;
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        color: #052e16;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="scratch-scene">
+      ${htmlNodes.join('\n      ')}
+    </main>
+  </body>
+</html>`;
+}
 
-Contributions are welcome. If you want to help build the converter, consider:
+function updateMode(mode) {
+  state.mode = mode;
+  modeButtons.forEach((button) => {
+    const isSelected = button.dataset.mode === mode;
+    button.classList.toggle('active', isSelected);
+  });
 
-- improving the parser and conversion logic
-- adding sample HTML and Scratch examples
-- documenting workflows and edge cases
-- helping create a simpler user experience
+  if (mode === 'html-to-scratch') {
+    sourceLabel.textContent = 'HTML input';
+    sourceInput.value = SAMPLE_HTML.trim();
+    output.value = htmlToScratch(sourceInput.value);
+  } else {
+    sourceLabel.textContent = 'Scratch JSON input';
+    sourceInput.value = JSON.stringify(SAMPLE_SCRATCH, null, 2);
+    output.value = scratchToHtml(sourceInput.value);
+  }
+}
 
-## License
+function convertCurrent() {
+  if (state.mode === 'html-to-scratch') {
+    output.value = htmlToScratch(sourceInput.value);
+  } else {
+    output.value = scratchToHtml(sourceInput.value);
+  }
+}
 
-This project currently does not specify a license. Add one if you plan to share or publish it publicly.
+function copyOutput() {
+  if (!output.value) return;
+  navigator.clipboard.writeText(output.value).then(() => {
+    copyBtn.textContent = 'Copied';
+    setTimeout(() => {
+      copyBtn.textContent = 'Copy output';
+    }, 1200);
+  }).catch(() => {
+    copyBtn.textContent = 'Copy failed';
+    setTimeout(() => {
+      copyBtn.textContent = 'Copy output';
+    }, 1200);
+  });
+}
 
-## Summary
+function downloadOutput() {
+  if (!output.value) return;
 
-Scratch-to-HTML5 is a creative bridge between web development and Scratch. It is designed to help people convert HTML into Scratch projects and Scratch projects into HTML5 experiences in a simple, approachable way.
+  const extension = state.mode === 'html-to-scratch' ? 'json' : 'html';
+  const blob = new Blob([output.value], { type: extension === 'json' ? 'application/json' : 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `converted-output.${extension}`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+modeButtons.forEach((button) => {
+  button.addEventListener('click', () => updateMode(button.dataset.mode));
+});
+
+convertBtn.addEventListener('click', convertCurrent);
+copyBtn.addEventListener('click', copyOutput);
+downloadBtn.addEventListener('click', downloadOutput);
+sampleBtn.addEventListener('click', () => {
+  if (state.mode === 'html-to-scratch') {
+    sourceInput.value = SAMPLE_HTML.trim();
+    output.value = htmlToScratch(sourceInput.value);
+  } else {
+    sourceInput.value = JSON.stringify(SAMPLE_SCRATCH, null, 2);
+    output.value = scratchToHtml(sourceInput.value);
+  }
+});
+
+sourceInput.addEventListener('input', () => {
+  if (!sourceInput.value.trim()) {
+    output.value = '';
+    return;
+  }
+
+  convertCurrent();
+});
+
+updateMode('html-to-scratch');
+
+window.addEventListener('DOMContentLoaded', () => {
+  sourceInput.value = SAMPLE_HTML.trim();
+  output.value = htmlToScratch(sourceInput.value);
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
